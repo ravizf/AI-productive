@@ -40,11 +40,23 @@ NeuroSync AI Dashboard is a React productivity app for managing tasks, notes, AI
 
 ## Live Demo
 
-Add your deployed app link here after deployment.
+Live link: https://ravizf.github.io/AI-productive/
+
+## Screenshots
+
+### Landing Page
+
+![NeuroSync landing page](public/screenshots/landing-preview.svg)
+
+### Dashboard
+
+![NeuroSync dashboard](public/screenshots/dashboard-preview.svg)
 
 ## GitHub
 
 Repository: https://github.com/ravizf/AI-productive
+
+LinkedIn: https://www.linkedin.com/in/ravizf
 
 ## Built By
 

@@ -1,0 +1,24 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="720" fill="#f8fafc"/>
+  <rect x="70" y="54" width="230" height="612" fill="white" stroke="#e2e8f0"/>
+  <text x="112" y="116" fill="#0f172a" font-family="Arial, sans-serif" font-size="28" font-weight="800">NeuroSync</text>
+  <rect x="104" y="166" width="160" height="44" rx="12" fill="#eff6ff"/>
+  <text x="126" y="194" fill="#2563eb" font-family="Arial, sans-serif" font-size="16" font-weight="700">Dashboard</text>
+  <rect x="340" y="74" width="790" height="92" rx="22" fill="white" stroke="#e2e8f0"/>
+  <text x="382" y="128" fill="#0f172a" font-family="Arial, sans-serif" font-size="34" font-weight="800">Daily Command Center</text>
+  <rect x="340" y="206" width="240" height="120" rx="22" fill="white" stroke="#e2e8f0"/>
+  <rect x="610" y="206" width="240" height="120" rx="22" fill="white" stroke="#e2e8f0"/>
+  <rect x="880" y="206" width="250" height="120" rx="22" fill="white" stroke="#e2e8f0"/>
+  <text x="370" y="274" fill="#2563eb" font-family="Arial, sans-serif" font-size="24" font-weight="800">Next Best Task</text>
+  <text x="640" y="274" fill="#d97706" font-family="Arial, sans-serif" font-size="24" font-weight="800">Focus Tip</text>
+  <text x="910" y="274" fill="#e11d48" font-family="Arial, sans-serif" font-size="24" font-weight="800">Check-in</text>
+  <rect x="340" y="376" width="240" height="230" rx="22" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="610" y="376" width="240" height="230" rx="22" fill="#eff6ff" stroke="#dbeafe"/>
+  <rect x="880" y="376" width="250" height="230" rx="22" fill="#ecfdf5" stroke="#d1fae5"/>
+  <text x="370" y="428" fill="#0f172a" font-family="Arial, sans-serif" font-size="22" font-weight="800">To Do</text>
+  <text x="640" y="428" fill="#0f172a" font-family="Arial, sans-serif" font-size="22" font-weight="800">In Progress</text>
+  <text x="910" y="428" fill="#0f172a" font-family="Arial, sans-serif" font-size="22" font-weight="800">Done</text>
+  <rect x="370" y="466" width="180" height="72" rx="14" fill="white" stroke="#e2e8f0"/>
+  <rect x="640" y="466" width="180" height="72" rx="14" fill="white" stroke="#bfdbfe"/>
+  <rect x="910" y="466" width="190" height="72" rx="14" fill="white" stroke="#bbf7d0"/>
+</svg>

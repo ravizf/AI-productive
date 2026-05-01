@@ -1089,7 +1089,7 @@ const DashboardShell = () => {
 export default function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<Landing githubUrl={GITHUB_URL} linkedinUrl={LINKEDIN_URL} />} />
           <Route path="/about" element={<div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-10"><div className="max-w-6xl mx-auto"><About githubUrl={GITHUB_URL} /></div></div>} />
