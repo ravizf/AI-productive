@@ -38,6 +38,19 @@ NeuroSync AI Dashboard is a React productivity app for managing tasks, notes, AI
 - Framer Motion
 - Vite
 
+## Firebase Setup
+
+Firebase is centralized in `src/firebase.js`. Replace the placeholder values or set these Vite environment variables:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+
+In Firebase Console, enable Authentication -> Sign-in method -> Email/Password.
+
 ## Live Demo
 
 Live link: https://ravizf.github.io/AI-productive/

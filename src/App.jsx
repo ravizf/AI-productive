@@ -26,10 +26,8 @@ import {
   X,
 } from 'lucide-react';
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
-  getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithCustomToken,
@@ -39,30 +37,23 @@ import {
   collection,
   deleteDoc,
   doc,
-  getFirestore,
   onSnapshot,
   setDoc,
 } from 'firebase/firestore';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+import { auth, db, hasFirebaseConfig } from './firebase.js';
 import Analytics from './pages/Analytics.jsx';
 import About from './pages/About.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Landing from './pages/Landing.jsx';
+import Login from './pages/Login.jsx';
 import Notes from './pages/Notes.jsx';
 import Settings from './pages/Settings.jsx';
 
-const firebaseConfig =
-  typeof window !== 'undefined' && window.__firebase_config
-    ? JSON.parse(window.__firebase_config)
-    : {};
 const appId =
   typeof window !== 'undefined' && window.__app_id ? window.__app_id : 'neurosync-app';
 const initialAuthToken =
   typeof window !== 'undefined' ? window.__initial_auth_token : undefined;
-const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
-
-const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
-const auth = firebaseApp ? getAuth(firebaseApp) : null;
-const db = firebaseApp ? getFirestore(firebaseApp) : null;
 
 const ThemeContext = createContext(null);
 const AuthContext = createContext(null);
@@ -187,11 +178,15 @@ const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (!hasFirebaseConfig || !auth) {
-      const localUser = localStorage.getItem('ns_auth_user');
-      setUser(localUser ? JSON.parse(localUser) : null);
+      const syncLocalUser = () => {
+        const localUser = localStorage.getItem('ns_auth_user');
+        setUser(localUser ? JSON.parse(localUser) : null);
+      };
+      syncLocalUser();
       setAuthLoading(false);
       setDataLoading(false);
-      return undefined;
+      window.addEventListener('ns-auth-change', syncLocalUser);
+      return () => window.removeEventListener('ns-auth-change', syncLocalUser);
     }
 
     const initAuth = async () => {
@@ -286,6 +281,7 @@ const AppProvider = ({ children }) => {
     if (hasFirebaseConfig && auth) await signOut(auth);
     localStorage.removeItem('ns_auth_user');
     setUser(null);
+    window.dispatchEvent(new Event('ns-auth-change'));
   }, []);
 
   const addTask = useCallback(async (taskData) => {
@@ -1154,16 +1150,17 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing githubUrl={GITHUB_URL} linkedinUrl={LINKEDIN_URL} />} />
           <Route path="/about" element={<div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-10"><div className="max-w-6xl mx-auto"><About githubUrl={GITHUB_URL} /></div></div>} />
-          <Route path="/login" element={<AuthForm mode="login" />} />
-          <Route path="/signup" element={<AuthForm mode="signup" />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Login />} />
           <Route path="/*" element={(
-            <AuthContext.Consumer>
-              {({ authLoading, user }) => {
-                if (authLoading) return <AuthScreen />;
-                if (!user) return <Navigate to="/login" replace />;
-                return <DashboardShell />;
-              }}
-            </AuthContext.Consumer>
+            <ProtectedRoute>
+              <AuthContext.Consumer>
+                {({ authLoading }) => {
+                  if (authLoading) return <AuthScreen />;
+                  return <DashboardShell />;
+                }}
+              </AuthContext.Consumer>
+            </ProtectedRoute>
           )} />
         </Routes>
       </BrowserRouter>
