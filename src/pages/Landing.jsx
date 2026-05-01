@@ -66,8 +66,14 @@ export default function Landing({ githubUrl, linkedinUrl }) {
                 to="/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
               >
-                Open Dashboard
+                Open App
                 <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/signup"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100"
+              >
+                Sign Up
               </Link>
               <a
                 href={githubUrl}

@@ -13,22 +13,27 @@ import {
   FileText,
   LayoutDashboard,
   Loader2,
+  LogOut,
   Menu,
   Moon,
   Play,
+  RefreshCcw,
   Sparkles,
   Sun,
   SunDim,
+  Target,
   Trash2,
   X,
 } from 'lucide-react';
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { initializeApp } from 'firebase/app';
 import {
+  createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
-  signInAnonymously,
+  signInWithEmailAndPassword,
   signInWithCustomToken,
+  signOut,
 } from 'firebase/auth';
 import {
   collection,
@@ -39,6 +44,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import Analytics from './pages/Analytics.jsx';
+import About from './pages/About.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Landing from './pages/Landing.jsx';
 import Notes from './pages/Notes.jsx';
@@ -73,33 +79,36 @@ const cardMotion = {
 const demoTasks = [
   {
     id: 'demo-task-1',
-    title: 'Prepare productivity dashboard demo',
+    title: 'Complete DSA practice',
     priority: 'High',
     status: 'todo',
-    suggestion: 'Open the dashboard and verify each route before sharing.',
+    suggestion: 'Solve two medium problems, then revise notes for 15 minutes.',
+    timeBlock: '09:00 - 10:30',
     createdAt: new Date().toISOString(),
   },
   {
     id: 'demo-task-2',
-    title: 'Review analytics and notes workflow',
+    title: 'Prepare for viva',
     priority: 'Medium',
     status: 'in-progress',
-    suggestion: 'Check that task counts, summaries, and local storage behave correctly.',
+    suggestion: 'Review key diagrams first, then practice answers aloud.',
+    timeBlock: '11:00 - 12:00',
     createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'demo-task-3',
-    title: 'Push final version to GitHub',
+    title: 'Update project README',
     priority: 'Low',
     status: 'done',
-    suggestion: 'Confirm the repository has the latest README and deploy files.',
+    suggestion: 'Add screenshots and live demo link after deployment.',
+    timeBlock: '16:30 - 17:00',
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     completedAt: new Date().toISOString(),
   },
 ];
 
 const demoNotes =
-  'Demo notes: NeuroSync helps turn scattered tasks and meeting thoughts into a focused daily plan. Try editing this note, adding a task, and opening Analytics.';
+  'Demo notes: NeuroSync helps students and builders turn scattered tasks into a focused daily plan. Today: finish DSA practice, prepare viva answers, and export a progress report.';
 
 const loadLocalTasks = () => {
   const savedTasks = localStorage.getItem('ns_tasks');
@@ -119,7 +128,14 @@ const callGeminiAI = async (prompt, schema = null) => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
   if (!apiKey) {
-    if (!schema) return 'Add a high-priority item first, then group smaller tasks into focused batches.';
+    if (!schema) {
+      return [
+        '09:00 - 10:30 | Deep Work | Start with the highest-priority task.',
+        '10:45 - 11:30 | Review | Clear one medium task with no phone distractions.',
+        '14:00 - 14:30 | Admin | Finish small tasks and update notes.',
+        'Focus tip: use a 45-minute timer and keep only one task open.',
+      ].join('\n');
+    }
     return {
       summary: prompt.split('\n').slice(-1)[0].slice(0, 180) || 'No notes to summarize yet.',
       actions: ['Pick the next concrete action', 'Set a time block', 'Review progress later today'],
@@ -158,7 +174,7 @@ const callGeminiAI = async (prompt, schema = null) => {
 const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => localStorage.getItem('ns_theme') || 'light');
   const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(Boolean(hasFirebaseConfig));
+  const [authLoading, setAuthLoading] = useState(true);
   const [tasks, setTasks] = useState(() => (hasFirebaseConfig ? [] : loadLocalTasks()));
   const [notes, setNotes] = useState(() => (hasFirebaseConfig ? '' : loadLocalNotes()));
   const [dataLoading, setDataLoading] = useState(Boolean(hasFirebaseConfig));
@@ -171,9 +187,8 @@ const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (!hasFirebaseConfig || !auth) {
-      const localUid = localStorage.getItem('ns_local_uid') || crypto.randomUUID();
-      localStorage.setItem('ns_local_uid', localUid);
-      setUser({ uid: localUid });
+      const localUser = localStorage.getItem('ns_auth_user');
+      setUser(localUser ? JSON.parse(localUser) : null);
       setAuthLoading(false);
       setDataLoading(false);
       return undefined;
@@ -182,7 +197,6 @@ const AppProvider = ({ children }) => {
     const initAuth = async () => {
       try {
         if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-        else await signInAnonymously(auth);
       } catch (err) {
         console.error('Auth failed:', err);
         setAuthLoading(false);
@@ -209,6 +223,12 @@ const AppProvider = ({ children }) => {
         id: taskDoc.id,
         ...taskDoc.data(),
       }));
+      if (fetchedTasks.length === 0 && !localStorage.getItem(`ns_seeded_${user.uid}`)) {
+        localStorage.setItem(`ns_seeded_${user.uid}`, 'true');
+        demoTasks.forEach((task) => {
+          setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', task.id), task);
+        });
+      }
       fetchedTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setTasks(fetchedTasks);
       setDataLoading(false);
@@ -216,7 +236,13 @@ const AppProvider = ({ children }) => {
 
     const unsubNotes = onSnapshot(notesRef, (snapshot) => {
       const noteDoc = snapshot.docs.find((item) => item.id === 'main_scratchpad');
-      setNotes(noteDoc?.data()?.content || '');
+      if (!noteDoc && !localStorage.getItem(`ns_notes_seeded_${user.uid}`)) {
+        localStorage.setItem(`ns_notes_seeded_${user.uid}`, 'true');
+        setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'notes', 'main_scratchpad'), {
+          content: demoNotes,
+        });
+      }
+      setNotes(noteDoc?.data()?.content || demoNotes);
     });
 
     return () => {
@@ -233,7 +259,34 @@ const AppProvider = ({ children }) => {
     total: tasks.length,
     done: tasks.filter((task) => task.status === 'done').length,
     pending: tasks.filter((task) => task.status !== 'done').length,
+    focusHours: Math.max(1, tasks.filter((task) => task.status !== 'done').length * 1.5),
+    streak: tasks.some((task) => task.status === 'done') ? 3 : 0,
   }), [tasks]);
+
+  const authAction = useCallback(async (mode, email, password) => {
+    if (!hasFirebaseConfig || !auth) {
+      const localUser = {
+        uid: localStorage.getItem('ns_local_uid') || crypto.randomUUID(),
+        email,
+      };
+      localStorage.setItem('ns_local_uid', localUser.uid);
+      localStorage.setItem('ns_auth_user', JSON.stringify(localUser));
+      setUser(localUser);
+      return localUser;
+    }
+
+    const credential =
+      mode === 'signup'
+        ? await createUserWithEmailAndPassword(auth, email, password)
+        : await signInWithEmailAndPassword(auth, email, password);
+    return credential.user;
+  }, []);
+
+  const logout = useCallback(async () => {
+    if (hasFirebaseConfig && auth) await signOut(auth);
+    localStorage.removeItem('ns_auth_user');
+    setUser(null);
+  }, []);
 
   const addTask = useCallback(async (taskData) => {
     const task = {
@@ -279,6 +332,26 @@ const AppProvider = ({ children }) => {
     await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId));
   }, [user]);
 
+  const arrangeTasks = useCallback(async () => {
+    const priorityRank = { High: 0, Medium: 1, Low: 2 };
+    const slots = ['09:00 - 10:30', '10:45 - 11:45', '12:00 - 12:45', '14:00 - 15:00', '16:00 - 16:30'];
+    const arranged = [...tasks]
+      .sort((a, b) => (priorityRank[a.priority] ?? 3) - (priorityRank[b.priority] ?? 3))
+      .map((task, index) => ({
+        ...task,
+        timeBlock: task.status === 'done' ? task.timeBlock : slots[index % slots.length],
+      }));
+
+    if (!hasFirebaseConfig || !user || !db) {
+      setTasks(arranged);
+      return;
+    }
+
+    await Promise.all(arranged.map((task) =>
+      setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', task.id), task),
+    ));
+  }, [tasks, user]);
+
   const saveNotes = useCallback(async (content) => {
     setNotes(content);
 
@@ -293,15 +366,15 @@ const AppProvider = ({ children }) => {
   }, [user]);
 
   const dataValue = useMemo(
-    () => ({ tasks, taskStats, addTask, updateTaskStatus, removeTask, notes, saveNotes, dataLoading }),
-    [tasks, taskStats, addTask, updateTaskStatus, removeTask, notes, saveNotes, dataLoading],
+    () => ({ tasks, taskStats, addTask, updateTaskStatus, removeTask, arrangeTasks, notes, saveNotes, dataLoading }),
+    [tasks, taskStats, addTask, updateTaskStatus, removeTask, arrangeTasks, notes, saveNotes, dataLoading],
   );
 
   return (
     <ThemeContext.Provider
       value={{ theme, toggleTheme: () => setTheme((current) => (current === 'light' ? 'dark' : 'light')) }}
     >
-      <AuthContext.Provider value={{ user, authLoading }}>
+      <AuthContext.Provider value={{ user, authLoading, login: (email, password) => authAction('login', email, password), signup: (email, password) => authAction('signup', email, password), logout }}>
         <DataContext.Provider value={dataValue}>{children}</DataContext.Provider>
       </AuthContext.Provider>
     </ThemeContext.Provider>
@@ -334,6 +407,89 @@ const AuthScreen = () => (
     </motion.div>
   </div>
 );
+
+const AuthForm = ({ mode }) => {
+  const { login, signup } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('demo@neurosync.app');
+  const [password, setPassword] = useState('password123');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const isSignup = mode === 'signup';
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await (isSignup ? signup(email, password) : login(email, password));
+      navigate('/dashboard');
+    } catch {
+      setError('Authentication failed. Check your email and password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const continueDemo = async () => {
+    setLoading(true);
+    await login('demo@neurosync.app', 'password123');
+    navigate('/dashboard');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
+      <motion.form {...cardMotion} onSubmit={submit} className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 shadow-xl">
+        <Link to="/" className="text-sm font-bold text-blue-600">NeuroSync</Link>
+        <h1 className="mt-4 text-3xl font-extrabold text-slate-950 dark:text-white">
+          {isSignup ? 'Create your account' : 'Welcome back'}
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          {isSignup ? 'Sign up to save your AI productivity workspace.' : 'Log in to open your productivity dashboard.'}
+        </p>
+
+        {error && (
+          <div className="mt-5 bg-red-50 text-red-600 p-3 rounded-xl text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-6 space-y-4">
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-sm dark:text-white"
+            placeholder="Email"
+            required
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-sm dark:text-white"
+            placeholder="Password"
+            required
+          />
+        </div>
+
+        <button type="submit" disabled={loading} className="mt-6 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+          {loading ? 'Please wait...' : isSignup ? 'Sign Up' : 'Login'}
+        </button>
+        <button type="button" onClick={continueDemo} disabled={loading} className="mt-3 w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+          Continue with Demo
+        </button>
+
+        <p className="mt-5 text-center text-sm text-slate-500">
+          {isSignup ? 'Already have an account?' : 'New here?'}{' '}
+          <Link className="font-bold text-blue-600" to={isSignup ? '/login' : '/signup'}>
+            {isSignup ? 'Login' : 'Create account'}
+          </Link>
+        </p>
+      </motion.form>
+    </div>
+  );
+};
 
 const WeatherWidget = () => {
   const [weather, setWeather] = useState(null);
@@ -494,7 +650,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 const KanbanBoard = () => {
-  const { tasks, addTask, updateTaskStatus, removeTask } = useContext(DataContext);
+  const { tasks, addTask, updateTaskStatus, removeTask, arrangeTasks } = useContext(DataContext);
   const [newTaskStr, setNewTaskStr] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [aiPlan, setAiPlan] = useState('');
@@ -506,6 +662,13 @@ const KanbanBoard = () => {
     { id: 'in-progress', title: 'In Progress', color: 'bg-blue-50/50 dark:bg-blue-950/20' },
     { id: 'done', title: 'Done', color: 'bg-emerald-50/50 dark:bg-emerald-950/20' },
   ];
+
+  const nextBestTask = useMemo(() => {
+    const priorityRank = { High: 0, Medium: 1, Low: 2 };
+    return tasks
+      .filter((task) => task.status !== 'done')
+      .sort((a, b) => (priorityRank[a.priority] ?? 3) - (priorityRank[b.priority] ?? 3))[0];
+  }, [tasks]);
 
   const handleSmartAdd = async (event) => {
     event.preventDefault();
@@ -548,7 +711,7 @@ const KanbanBoard = () => {
         .join('\n');
       setAiPlan(
         activeTasks
-          ? await callGeminiAI(`I have these tasks:\n${activeTasks}\nSuggest a brief plan for today.`)
+          ? await callGeminiAI(`I have these tasks:\n${activeTasks}\nCreate a structured day plan with time blocks, priority order, and focus tips.`)
           : 'You have no active tasks. Enjoy your day!',
       );
     } catch {
@@ -576,11 +739,33 @@ const KanbanBoard = () => {
           </button>
         </form>
 
+        <button onClick={arrangeTasks} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md font-semibold">
+          <RefreshCcw className="w-5 h-5" />
+          Auto Arrange Tasks
+        </button>
+
         <button onClick={generateDayPlan} disabled={isPlanning} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 bg-slate-950 dark:bg-blue-600 text-white rounded-2xl shadow-md hover:shadow-lg font-semibold disabled:opacity-70">
           {isPlanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
           Plan My Day
         </button>
       </div>
+
+      {nextBestTask && (
+        <motion.div {...cardMotion} className="grid md:grid-cols-3 gap-4">
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-2xl p-4">
+            <p className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">Next Best Task</p>
+            <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{nextBestTask.title}</p>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900 rounded-2xl p-4">
+            <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase">Focus Suggestion</p>
+            <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">Work on one task for 45 minutes before switching.</p>
+          </div>
+          <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900 rounded-2xl p-4">
+            <p className="text-xs font-bold text-rose-700 dark:text-rose-300 uppercase">Procrastination Check</p>
+            <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">If a high priority task is stuck, break it into a 10-minute first step.</p>
+          </div>
+        </motion.div>
+      )}
 
       {error && (
         <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm">
@@ -637,6 +822,11 @@ const KanbanBoard = () => {
                       </button>
                     </div>
                     <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug print:text-black">{task.title}</p>
+                    {task.timeBlock && (
+                      <p className="mt-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        {task.timeBlock}
+                      </p>
+                    )}
                     {task.suggestion && (
                       <p className="mt-3 text-xs text-blue-500 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/30 p-2 rounded-lg flex items-start gap-1">
                         <Sparkles className="w-3 h-3 mt-0.5 shrink-0" />
@@ -647,7 +837,7 @@ const KanbanBoard = () => {
                 ))}
               {tasks.filter((task) => task.status === column.id).length === 0 && (
                 <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-400 opacity-60 print:hidden">
-                  Drop tasks here
+                  No tasks yet. Start by adding one.
                 </div>
               )}
             </div>
@@ -660,7 +850,7 @@ const KanbanBoard = () => {
 
 const AnalyticsView = () => {
   const { tasks, taskStats } = useContext(DataContext);
-  const { total, done } = taskStats;
+  const { total, done, streak, focusHours } = taskStats;
   const completionRate = total === 0 ? 0 : Math.round((done / total) * 100);
   const priorities = {
     High: tasks.filter((task) => task.priority === 'High').length,
@@ -669,6 +859,10 @@ const AnalyticsView = () => {
   };
   const radius = 60;
   const circumference = 2 * Math.PI * radius;
+  const weeklyData = [2, 4, 3, 5, Math.max(done, 1), taskStats.pending, total].map((value, index) => ({
+    day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index],
+    value,
+  }));
 
   return (
     <div className="space-y-8">
@@ -676,6 +870,19 @@ const AnalyticsView = () => {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Productivity Analytics</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Visualize your workflow performance.</p>
       </header>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Completion Streak', value: `${streak} days` },
+          { label: 'Focus Hours', value: `${focusHours}h` },
+          { label: 'Open Tasks', value: taskStats.pending },
+        ].map((item) => (
+          <motion.div {...cardMotion} key={item.label} className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{item.label}</p>
+            <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">{item.value}</p>
+          </motion.div>
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div {...cardMotion} className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center">
@@ -713,13 +920,29 @@ const AnalyticsView = () => {
           </div>
         </motion.div>
       </div>
+
+      <motion.div {...cardMotion} className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+        <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-6">Weekly Productivity</h3>
+        <div className="flex items-end gap-3 h-44">
+          {weeklyData.map((item) => (
+            <div key={item.day} className="flex-1 flex flex-col items-center gap-2">
+              <div
+                className="w-full rounded-t-xl bg-blue-500 min-h-4"
+                style={{ height: `${Math.max(12, item.value * 18)}px` }}
+              />
+              <span className="text-xs font-bold text-slate-500">{item.day}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 };
 
 const DashboardShell = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
+  const { tasks, taskStats } = useContext(DataContext);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const activeTab = location.pathname.split('/')[1] || 'dashboard';
@@ -727,8 +950,26 @@ const DashboardShell = () => {
     { id: 'dashboard', to: '/dashboard', icon: <LayoutDashboard />, label: 'Dashboard' },
     { id: 'analytics', to: '/analytics', icon: <BarChart3 />, label: 'Analytics' },
     { id: 'notes', to: '/notes', icon: <FileText />, label: 'Notes' },
+    { id: 'about', to: '/about', icon: <Target />, label: 'About' },
     { id: 'settings', to: '/settings', icon: <Sparkles />, label: 'Settings' },
   ];
+  const downloadReport = () => {
+    const report = [
+      'NeuroSync AI Dashboard Report',
+      `Total tasks: ${taskStats.total}`,
+      `Completed: ${taskStats.done}`,
+      `Pending: ${taskStats.pending}`,
+      '',
+      ...tasks.map((task) => `- [${task.status}] ${task.title} (${task.priority}) ${task.timeBlock || ''}`),
+    ].join('\n');
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'neurosync-report.txt';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 overflow-hidden font-sans">
@@ -790,14 +1031,21 @@ const DashboardShell = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={() => window.print()} className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
+            <button onClick={() => window.print()} className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
               <Download className="w-4 h-4" />
+              <span className="sr-only">Export PDF</span>
+            </button>
+            <button onClick={downloadReport} className="hidden sm:inline-flex px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
+              Download Report
             </button>
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
               GitHub
             </a>
             <button onClick={toggleTheme} className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </button>
+            <button onClick={logout} className="p-2.5 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-300 bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800" title="Logout">
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </header>
@@ -826,6 +1074,7 @@ const DashboardShell = () => {
               </Dashboard>} />
               <Route path="/analytics" element={<Analytics><AnalyticsView /></Analytics>} />
               <Route path="/notes" element={<Notes><SmartNotesWidget /></Notes>} />
+              <Route path="/about" element={<About githubUrl={GITHUB_URL} />} />
               <Route path="/settings" element={<Settings hasFirebaseConfig={hasFirebaseConfig} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
@@ -843,10 +1092,14 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing githubUrl={GITHUB_URL} linkedinUrl={LINKEDIN_URL} />} />
+          <Route path="/about" element={<div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-10"><div className="max-w-6xl mx-auto"><About githubUrl={GITHUB_URL} /></div></div>} />
+          <Route path="/login" element={<AuthForm mode="login" />} />
+          <Route path="/signup" element={<AuthForm mode="signup" />} />
           <Route path="/*" element={(
             <AuthContext.Consumer>
               {({ authLoading, user }) => {
-                if (authLoading || !user) return <AuthScreen />;
+                if (authLoading) return <AuthScreen />;
+                if (!user) return <Navigate to="/login" replace />;
                 return <DashboardShell />;
               }}
             </AuthContext.Consumer>
