@@ -34,7 +34,7 @@ export default function Landing({ githubUrl, linkedinUrl }) {
             <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
               <BrainCircuit className="w-5 h-5 text-white" />
             </div>
-            NeuroSync AI Dashboard
+            NeuroSync
           </div>
           <a
             href={githubUrl}
@@ -55,10 +55,10 @@ export default function Landing({ githubUrl, linkedinUrl }) {
             </div>
             <div>
               <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-950">
-                NeuroSync AI Dashboard
+                NeuroSync – AI Productivity Dashboard
               </h1>
               <p className="mt-5 max-w-2xl text-lg text-slate-600 leading-8">
-                A focused productivity command center for tasks, notes, planning, and workflow analytics.
+                Plan your day with AI.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">

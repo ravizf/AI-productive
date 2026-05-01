@@ -79,19 +79,19 @@ const cardMotion = {
 const demoTasks = [
   {
     id: 'demo-task-1',
-    title: 'Complete DSA practice',
+    title: 'Prepare for viva',
     priority: 'High',
     status: 'todo',
-    suggestion: 'Solve two medium problems, then revise notes for 15 minutes.',
+    suggestion: 'Review key diagrams first, then practice answers aloud.',
     timeBlock: '09:00 - 10:30',
     createdAt: new Date().toISOString(),
   },
   {
     id: 'demo-task-2',
-    title: 'Prepare for viva',
+    title: 'Practice DSA',
     priority: 'Medium',
     status: 'in-progress',
-    suggestion: 'Review key diagrams first, then practice answers aloud.',
+    suggestion: 'Solve two medium problems, then revise notes for 15 minutes.',
     timeBlock: '11:00 - 12:00',
     createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
   },
@@ -323,6 +323,20 @@ const AppProvider = ({ children }) => {
     await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId), updatedTask);
   }, [tasks, user]);
 
+  const updateTaskDetails = useCallback(async (taskId, updates) => {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return;
+
+    const updatedTask = { ...task, ...updates };
+
+    if (!hasFirebaseConfig || !user || !db) {
+      setTasks((current) => current.map((item) => (item.id === taskId ? updatedTask : item)));
+      return;
+    }
+
+    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'tasks', taskId), updatedTask);
+  }, [tasks, user]);
+
   const removeTask = useCallback(async (taskId) => {
     if (!hasFirebaseConfig || !user || !db) {
       setTasks((current) => current.filter((task) => task.id !== taskId));
@@ -366,8 +380,8 @@ const AppProvider = ({ children }) => {
   }, [user]);
 
   const dataValue = useMemo(
-    () => ({ tasks, taskStats, addTask, updateTaskStatus, removeTask, arrangeTasks, notes, saveNotes, dataLoading }),
-    [tasks, taskStats, addTask, updateTaskStatus, removeTask, arrangeTasks, notes, saveNotes, dataLoading],
+    () => ({ tasks, taskStats, addTask, updateTaskStatus, updateTaskDetails, removeTask, arrangeTasks, notes, saveNotes, dataLoading }),
+    [tasks, taskStats, addTask, updateTaskStatus, updateTaskDetails, removeTask, arrangeTasks, notes, saveNotes, dataLoading],
   );
 
   return (
@@ -650,7 +664,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 const KanbanBoard = () => {
-  const { tasks, addTask, updateTaskStatus, removeTask, arrangeTasks } = useContext(DataContext);
+  const { tasks, addTask, updateTaskStatus, updateTaskDetails, removeTask, arrangeTasks } = useContext(DataContext);
   const [newTaskStr, setNewTaskStr] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [aiPlan, setAiPlan] = useState('');
@@ -720,6 +734,25 @@ const KanbanBoard = () => {
     } finally {
       setIsPlanning(false);
     }
+  };
+
+  const suggestForTask = async (task) => {
+    const suggestion = `Next step: spend 25 minutes on "${task.title}" and write one clear outcome before stopping.`;
+    await updateTaskDetails(task.id, { suggestion });
+  };
+
+  const improveTask = async (task) => {
+    setNewTaskStr(`${task.title} — define outcome, deadline, and first action`);
+  };
+
+  const breakIntoSteps = async (task) => {
+    setAiPlan([
+      `Breakdown for: ${task.title}`,
+      '1. Define the exact finished outcome.',
+      '2. Collect the material or context needed.',
+      '3. Work in one 25-minute focus block.',
+      '4. Review and mark progress.',
+    ].join('\n'));
   };
 
   return (
@@ -833,6 +866,17 @@ const KanbanBoard = () => {
                         {task.suggestion}
                       </p>
                     )}
+                    <div className="mt-3 grid grid-cols-1 gap-2 print:hidden">
+                      <button onClick={() => suggestForTask(task)} className="rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
+                        Suggest next task
+                      </button>
+                      <button onClick={() => improveTask(task)} className="rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-950 transition-colors">
+                        Improve this task
+                      </button>
+                      <button onClick={() => breakIntoSteps(task)} className="rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors">
+                        Break into steps
+                      </button>
+                    </div>
                   </motion.div>
                 ))}
               {tasks.filter((task) => task.status === column.id).length === 0 && (
@@ -873,9 +917,9 @@ const AnalyticsView = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Completion Streak', value: `${streak} days` },
+          { label: 'Productivity Score', value: `${completionRate}/100` },
+          { label: 'Daily Streak', value: `${streak} days` },
           { label: 'Focus Hours', value: `${focusHours}h` },
-          { label: 'Open Tasks', value: taskStats.pending },
         ].map((item) => (
           <motion.div {...cardMotion} key={item.label} className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{item.label}</p>
@@ -886,7 +930,7 @@ const AnalyticsView = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div {...cardMotion} className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col items-center">
-          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-6 self-start">Task Completion</h3>
+          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-6 self-start">Completed vs Pending</h3>
           <div className="relative w-40 h-40">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
               <circle cx="70" cy="70" r={radius} stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100 dark:text-slate-800" />
@@ -894,7 +938,7 @@ const AnalyticsView = () => {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-3xl font-bold text-slate-900 dark:text-white">{completionRate}%</span>
-              <span className="text-xs text-slate-500 font-medium">Done</span>
+              <span className="text-xs text-slate-500 font-medium">Completed</span>
             </div>
           </div>
         </motion.div>
@@ -1036,7 +1080,7 @@ const DashboardShell = () => {
               <span className="sr-only">Export PDF</span>
             </button>
             <button onClick={downloadReport} className="hidden sm:inline-flex px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
-              Download Report
+              Download Productivity Report (PDF)
             </button>
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
               GitHub
