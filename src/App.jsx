@@ -40,6 +40,7 @@ import {
 } from 'firebase/firestore';
 import Analytics from './pages/Analytics.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Landing from './pages/Landing.jsx';
 import Notes from './pages/Notes.jsx';
 import Settings from './pages/Settings.jsx';
 
@@ -61,13 +62,58 @@ const ThemeContext = createContext(null);
 const AuthContext = createContext(null);
 const DataContext = createContext(null);
 
+const GITHUB_URL = 'https://github.com/ravizf/AI-productive';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/ravizf';
+
 const cardMotion = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
 };
 
-const loadLocalTasks = () => JSON.parse(localStorage.getItem('ns_tasks') || '[]');
-const loadLocalNotes = () => localStorage.getItem('ns_notes') || '';
+const demoTasks = [
+  {
+    id: 'demo-task-1',
+    title: 'Prepare productivity dashboard demo',
+    priority: 'High',
+    status: 'todo',
+    suggestion: 'Open the dashboard and verify each route before sharing.',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-task-2',
+    title: 'Review analytics and notes workflow',
+    priority: 'Medium',
+    status: 'in-progress',
+    suggestion: 'Check that task counts, summaries, and local storage behave correctly.',
+    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'demo-task-3',
+    title: 'Push final version to GitHub',
+    priority: 'Low',
+    status: 'done',
+    suggestion: 'Confirm the repository has the latest README and deploy files.',
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    completedAt: new Date().toISOString(),
+  },
+];
+
+const demoNotes =
+  'Demo notes: NeuroSync helps turn scattered tasks and meeting thoughts into a focused daily plan. Try editing this note, adding a task, and opening Analytics.';
+
+const loadLocalTasks = () => {
+  const savedTasks = localStorage.getItem('ns_tasks');
+  if (savedTasks) return JSON.parse(savedTasks);
+  localStorage.setItem('ns_tasks', JSON.stringify(demoTasks));
+  return demoTasks;
+};
+
+const loadLocalNotes = () => {
+  const savedNotes = localStorage.getItem('ns_notes');
+  if (savedNotes) return savedNotes;
+  localStorage.setItem('ns_notes', demoNotes);
+  return demoNotes;
+};
 
 const callGeminiAI = async (prompt, schema = null) => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
@@ -261,6 +307,20 @@ const AppProvider = ({ children }) => {
     </ThemeContext.Provider>
   );
 };
+
+const Footer = () => (
+  <footer className="mt-10 border-t border-slate-100 dark:border-slate-800 pt-5 text-sm text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between print:hidden">
+    <span>Built by Ravi</span>
+    <div className="flex items-center gap-4">
+      <a className="hover:text-blue-600 dark:hover:text-blue-300" href={GITHUB_URL} target="_blank" rel="noreferrer">
+        GitHub
+      </a>
+      <a className="hover:text-blue-600 dark:hover:text-blue-300" href={LINKEDIN_URL} target="_blank" rel="noreferrer">
+        LinkedIn
+      </a>
+    </div>
+  </footer>
+);
 
 const AuthScreen = () => (
   <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center items-center p-4 transition-colors">
@@ -733,6 +793,9 @@ const DashboardShell = () => {
             <button onClick={() => window.print()} className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
               <Download className="w-4 h-4" />
             </button>
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
+              GitHub
+            </a>
             <button onClick={toggleTheme} className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
@@ -742,7 +805,6 @@ const DashboardShell = () => {
         <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar print:p-0 print:bg-white print:text-black">
           <div className="max-w-6xl mx-auto">
             <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard>
               <div className="space-y-8">
                 <header className="print:block print:pb-4 print:border-b print:border-slate-300">
@@ -765,7 +827,9 @@ const DashboardShell = () => {
               <Route path="/analytics" element={<Analytics><AnalyticsView /></Analytics>} />
               <Route path="/notes" element={<Notes><SmartNotesWidget /></Notes>} />
               <Route path="/settings" element={<Settings hasFirebaseConfig={hasFirebaseConfig} />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
+            <Footer />
           </div>
         </div>
       </main>
@@ -777,12 +841,17 @@ export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
-        <AuthContext.Consumer>
-          {({ authLoading, user }) => {
-            if (authLoading || !user) return <AuthScreen />;
-            return <DashboardShell />;
-          }}
-        </AuthContext.Consumer>
+        <Routes>
+          <Route path="/" element={<Landing githubUrl={GITHUB_URL} linkedinUrl={LINKEDIN_URL} />} />
+          <Route path="/*" element={(
+            <AuthContext.Consumer>
+              {({ authLoading, user }) => {
+                if (authLoading || !user) return <AuthScreen />;
+                return <DashboardShell />;
+              }}
+            </AuthContext.Consumer>
+          )} />
+        </Routes>
       </BrowserRouter>
     </AppProvider>
   );
