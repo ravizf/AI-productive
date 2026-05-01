@@ -66,7 +66,7 @@ export default function Landing({ githubUrl, linkedinUrl }) {
                 to="/dashboard"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
               >
-                Open Dashboard
+                Enter Dashboard
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
