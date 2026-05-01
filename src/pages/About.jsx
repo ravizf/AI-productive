@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 
-export default function About({ githubUrl }) {
+export default function About({ githubUrl, linkedinUrl = 'https://www.linkedin.com/in/ravizf' }) {
   return (
     <div className="space-y-8">
       <header>
@@ -32,14 +32,24 @@ export default function About({ githubUrl }) {
           <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
             React, Firebase, Gemini AI, Tailwind CSS, React Router, Framer Motion, and Vite.
           </p>
-          <a
-            href={githubUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-5 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
-          >
-            View GitHub
-          </a>
+          <div className="mt-5 flex flex-col sm:flex-row gap-3">
+            <a
+              href={githubUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+            >
+              GitHub
+            </a>
+            <a
+              href={linkedinUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex justify-center rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              LinkedIn
+            </a>
+          </div>
         </motion.div>
       </div>
     </div>

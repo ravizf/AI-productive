@@ -837,7 +837,7 @@ const KanbanBoard = () => {
                 ))}
               {tasks.filter((task) => task.status === column.id).length === 0 && (
                 <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-400 opacity-60 print:hidden">
-                  No tasks yet. Start by adding one.
+                  No tasks yet — add your first AI task
                 </div>
               )}
             </div>
