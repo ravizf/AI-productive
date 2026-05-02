@@ -58,7 +58,7 @@ export default function Landing({ githubUrl, linkedinUrl }) {
                 NeuroSync – AI Productivity Dashboard
               </h1>
               <p className="mt-5 max-w-2xl text-lg text-slate-600 leading-8">
-                Plan your day with AI.
+                Plan, prioritize and execute with AI.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">

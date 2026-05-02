@@ -48,7 +48,6 @@ import Dashboard from './pages/Dashboard.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Notes from './pages/Notes.jsx';
-import Settings from './pages/Settings.jsx';
 
 const appId =
   typeof window !== 'undefined' && window.__app_id ? window.__app_id : 'neurosync-app';
@@ -611,7 +610,7 @@ const SmartNotesWidget = () => {
           className="flex items-center gap-1.5 text-xs font-medium text-purple-600 bg-purple-50 dark:bg-purple-950 dark:text-purple-300 px-3 py-1.5 rounded-lg hover:bg-purple-100 disabled:opacity-50"
         >
           {isSummarizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-          AI Summarize
+          {isSummarizing ? 'AI thinking...' : 'AI Summarize'}
         </button>
       </div>
 
@@ -789,7 +788,7 @@ const KanbanBoard = () => {
 
         <button onClick={generateDayPlan} disabled={isPlanning} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-4 bg-slate-950 dark:bg-blue-600 text-white rounded-2xl shadow-md hover:shadow-lg font-semibold disabled:opacity-70">
           {isPlanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
-          Plan My Day
+          {isPlanning ? 'AI thinking...' : 'Plan My Day'}
         </button>
       </div>
 
@@ -891,7 +890,7 @@ const KanbanBoard = () => {
                 ))}
               {tasks.filter((task) => task.status === column.id).length === 0 && (
                 <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-400 opacity-60 print:hidden">
-                  No tasks yet — add your first AI task
+                  No tasks yet — start your AI workflow 🚀
                 </div>
               )}
             </div>
@@ -1005,7 +1004,6 @@ const DashboardShell = () => {
     { id: 'analytics', to: '/analytics', icon: <BarChart3 />, label: 'Analytics' },
     { id: 'notes', to: '/notes', icon: <FileText />, label: 'Notes' },
     { id: 'about', to: '/about', icon: <Target />, label: 'About' },
-    { id: 'settings', to: '/settings', icon: <Sparkles />, label: 'Settings' },
   ];
   const downloadReport = () => {
     const report = [
@@ -1089,7 +1087,7 @@ const DashboardShell = () => {
               <Download className="w-4 h-4" />
               <span className="sr-only">Export PDF</span>
             </button>
-            <button onClick={downloadReport} className="hidden sm:inline-flex px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
+            <button onClick={downloadReport} className="inline-flex px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
               Download Productivity Report (PDF)
             </button>
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-slate-900 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
@@ -1116,9 +1114,7 @@ const DashboardShell = () => {
                   <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Daily Command Center</h1>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">Manage your workflow, powered by smart assistance.</p>
                 </header>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 print:hidden">
-                  <WeatherWidget />
-                  <CalendarWidget />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:hidden">
                   <SmartNotesWidget />
                 </div>
                 <div>
@@ -1132,7 +1128,6 @@ const DashboardShell = () => {
               <Route path="/analytics" element={<Analytics><AnalyticsView /></Analytics>} />
               <Route path="/notes" element={<Notes><SmartNotesWidget /></Notes>} />
               <Route path="/about" element={<About githubUrl={GITHUB_URL} />} />
-              <Route path="/settings" element={<Settings hasFirebaseConfig={hasFirebaseConfig} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
             <Footer />

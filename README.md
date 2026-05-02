@@ -11,13 +11,12 @@ NeuroSync AI Dashboard is a React productivity app for managing tasks, notes, AI
 - `/analytics` - Task analytics
 - `/notes` - Smart notes
 - `/about` - Project information
-- `/settings` - Workspace settings
 
 ## Features
 
 - Landing page with hero, project intro, Open App button, and feature preview
 - Login, signup, logout, and demo sign-in flow
-- React Router pages for dashboard, analytics, notes, and settings
+- React Router pages for landing, dashboard, analytics, notes, about, and login
 - Demo data for first-time visitors
 - AI task parsing, day planning, auto scheduling, and note summaries
 - Smart suggestions for next best task, focus, and procrastination checks
